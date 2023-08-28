@@ -2,6 +2,11 @@
 Dictionary name to ID map for GMail labels
 '''
 
+DATABASE_FILE = 'departures-pa.json'
+CREDENTIALS_JSON = 'credentials-pa.json'
+
+TARGET_LABEL_NAME = 'X-Automated/Departures'
+
 LABEL_NAME = dict()
 
 LABEL_NAME['CHAT']='CHAT'

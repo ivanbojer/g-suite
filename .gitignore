@@ -128,7 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 token.json
-credentials.json
+credentials-pa.json
+credentials-boj.json
 departures.db
 .venv-gsuite
 test.csv
