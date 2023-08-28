@@ -1,7 +1,14 @@
 from __future__ import print_function
 from datetime import datetime
 from datetime import timedelta
-from config import LABEL_NAME
+# from config import LABEL_NAME
+# from config import DATABASE_FILE
+# from config import CREDENTIALS_JSON
+# from config import TARGET_LABEL_NAME
+# from config_boj import LABEL_NAME
+# from config_boj import DATABASE_FILE
+# from config_boj import CREDENTIALS_JSON
+# from config_boj import TARGET_LABEL_NAME
 import os.path
 import sqlite3
 
@@ -13,9 +20,6 @@ from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
-
-#database file name
-DATABASE_FILE='departures.db'
 
 # def create_message(sender, to, subject, message_text):
 #     """
@@ -70,7 +74,7 @@ def authenticate():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                CREDENTIALS_JSON, SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.json', 'w') as token:
@@ -136,14 +140,14 @@ def get_individual_messages(service, messages_data):
         except Exception as err:
             print('msg: %s' % msg)
             print('ret: %s' % ret)
-            print(f"Unexqpected {err=}, {type(err)=}")
+            print(f"Unexpected {err=}, {type(err)=}")
             continue
 
     return all_messages
 
 
 def get_last_database_entry():
-    conn = sqlite3.connect('departures.db')
+    conn = sqlite3.connect( DATABASE_FILE )
     cursor = conn.cursor()
 
     last_date = cursor.execute("SELECT date FROM email_alerts GROUP BY date ORDER BY date desc LIMIT 1").fetchall()
@@ -159,30 +163,38 @@ def main():
     Lists the user's Gmail labels.
     """
 
-    if not os.path.isfile('departures.db'):
+    if not os.path.isfile( DATABASE_FILE ):
         print('Database file does not exist, initializing...')
         init_db()
 
     last_date_entry = get_last_database_entry()
-    last_date_entry = last_date_entry.split(' ')[0]
-    date_format = "%Y-%m-%d"
-    last_date = datetime.strptime(last_date_entry, date_format).date()
-    last_date = last_date + timedelta(days=1)
-    last_date = str(last_date).replace('-','/')
+    last_date = None
+    if last_date_entry:
+        last_date_entry = last_date_entry.split(' ')[0]
+        date_format = "%Y-%m-%d"
+        last_date = datetime.strptime(last_date_entry, date_format).date()
+        last_date = last_date + timedelta(days=1)
+        last_date = str(last_date).replace('-','/')
 
     try:
         # Authenticate with Gmail API
         service = authenticate()
         
         pageToken = None
-        LABELID = LABEL_NAME['X-Automated/Departures']
-        AFTER='after:' + last_date
-        # BEFORE='before:2023/8/25'
-        QUERY = AFTER #  + ' ' + BEFORE
-        # https://mail.google.com/mail/u/0/#advanced-search/query=label%3Ax-automated-departures&isrefinement=true&datestart=2023-08-15&daterangetype=custom_range
+
+        ################
+        LABELID = LABEL_NAME[TARGET_LABEL_NAME]
+        ################
 
         # Call the Gmail API
-        results = service.users().messages().list(userId='me', labelIds=LABELID, pageToken=pageToken, maxResults=100, q=QUERY).execute() #, q=QUERY
+        results = None
+        if last_date:
+            AFTER='after:' + last_date
+            # BEFORE='before:2023/8/25'
+            QUERY = AFTER #  + ' ' + BEFORE
+            results = service.users().messages().list(userId='me', labelIds=LABELID, pageToken=pageToken, maxResults=100, q=QUERY).execute() #, q=QUERY
+        else:
+            results = service.users().messages().list(userId='me', labelIds=LABELID, pageToken=pageToken, maxResults=100).execute()
         messages = results.get('messages', [])
         # retrieve gmail messages
         all_messages = get_individual_messages(service, messages)
